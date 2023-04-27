@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_58872_needit.NeedItUtils</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description>Utils Script Include for the NeedIt application.</description>
+        <name>NeedItUtils</name>
+        <script><![CDATA[var NeedItUtils = Class.create();
+
+NeedItUtils.prototype = {
+    initialize: function() {},
+
+    isDatePast: function(dateToCheck) {
+		
+		// Get the current time for the reference.
+        var currentTime = new GlideDateTime();
+		// Convert the passed date into the GlideDateTime object.
+        var _dateToCheck = new GlideDateTime(dateToCheck);
+
+		// Check if the _dateToCheck is older than the current time.
+		// If if is then return true, else return false.
+        if (_dateToCheck.before(currentTime)) {
+            return true;
+        } else {
+            return false;
+        }
+    },
+	
+	isDateToday: function(dateToCheck) {
+		// Get the current time in local for the reference.
+		var todaysDate = new GlideDateTime().getLocalDate();
+		var _dateToCheck = new GlideDateTime(dateToCheck).getLocalDate();
+		
+		if (todaysDate.compareTo(_dateToCheck) == 0) {
+			return true;
+		} else {
+			return false;
+		}
+	},
+
+    type: 'NeedItUtils'
+};]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2023-04-26 12:39:57</sys_created_on>
+        <sys_id>eb8c2a3f9756a910cbc2f5d3f153af31</sys_id>
+        <sys_mod_count>2</sys_mod_count>
+        <sys_name>NeedItUtils</sys_name>
+        <sys_package display_value="NeedIt" source="x_58872_needit">6ead8e780f603200cd674f8ce1050ed1</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="NeedIt">6ead8e780f603200cd674f8ce1050ed1</sys_scope>
+        <sys_update_name>sys_script_include_eb8c2a3f9756a910cbc2f5d3f153af31</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2023-04-26 12:53:53</sys_updated_on>
+    </sys_script_include>
+</record_update>
