@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_58872_needit.FetchData</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description/>
+        <name>FetchData</name>
+        <script><![CDATA[var FetchData = Class.create();
+
+FetchData.prototype = {
+    initialize: function() {},
+
+    processBodyAndCreateAttachment: function(data) {
+        try {
+
+            var queueTableName = "x_58872_needit_queue_table";
+            var attachment = new GlideSysAttachment();
+
+            // Create a GlideRecord object of the Queue table.
+            var newQueueRecord = new GlideRecord(queueTableName);
+
+            // Set the values for the table.
+            var currentTime = new GlideDateTime() + "";
+            newQueueRecord.setValue("dummy", currentTime);
+            newQueueRecord.setValue("state", 1);
+
+            // Insert the newly created record to the table.
+            newQueueRecord.insert();
+
+            // Write the attachment to the sys_attachment table.
+            var fileName = currentTime + ".json";
+            var fileType = "json";
+            var sys_id = attachment.write(newQueueRecord, fileName, fileType, data);
+
+            // Write a success log and the sys_id of the record.
+            gs.info("Successfully added an attachment to the sys_attachment table with sys_id as " + sys_id);
+
+        } catch (err) {
+            gs.error("An error occurred while creating and saving an attachment. " + err);
+        }
+    },
+    fetchData: function() {
+        try {
+            var apiEndpoint = "https://run.mocky.io/v3/cdac96d3-25bf-49bc-b234-25050e1e7d63";
+            var httpMethod = "GET";
+
+            var sm = new sn_ws.RESTMessageV2();
+            sm.setEndpoint(apiEndpoint);
+            sm.setHttpMethod(httpMethod);
+
+            var response = sm.execute();
+            var body = response.getBody();
+
+            this.processBodyAndCreateAttachment(body);
+            // 			// sm.saveResponseBodyAsAttachment(); -- expore this
+
+            //             var newAttachment = new GlideSysAttachment();
+
+            //             var customGlide = new GlideRecord("x_58872_needit_queue_table");
+
+            //             customGlide.dummy = "1234";
+            //             customGlide.insert();
+
+            //             var currentTime = new GlideDateTime() + "";
+            //             gs.info("Current Time: " + currentTime);
+            //             var agr = newAttachment.write(customGlide, currentTime + ".json", "json", body);
+
+            //             gs.info('The attachment sys_id is: ' + agr);
+        } catch (err) {
+            gs.error("Exception: " + err);
+        }
+    },
+
+    type: 'FetchData'
+};]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2023-04-28 10:01:17</sys_created_on>
+        <sys_id>d58b1068972a2d10cbc2f5d3f153afb2</sys_id>
+        <sys_mod_count>19</sys_mod_count>
+        <sys_name>FetchData</sys_name>
+        <sys_package display_value="NeedIt" source="x_58872_needit">6ead8e780f603200cd674f8ce1050ed1</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="NeedIt">6ead8e780f603200cd674f8ce1050ed1</sys_scope>
+        <sys_update_name>sys_script_include_d58b1068972a2d10cbc2f5d3f153afb2</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2023-04-28 12:54:21</sys_updated_on>
+    </sys_script_include>
+</record_update>

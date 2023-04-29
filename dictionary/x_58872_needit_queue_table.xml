@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element db_object_id="d3d5a4e8976a2d10cbc2f5d3f153afb5" label="Queue Table" max_length="40" name="x_58872_needit_queue_table" type="collection">
+        <element label="Data Source" max_length="32" name="data_source" reference="sys_data_source" type="reference"/>
+        <element label="Dummy" max_length="40" name="dummy" type="string"/>
+        <element label="Import Set" max_length="32" name="import_set" reference="sys_import_set" type="reference"/>
+        <element choice="3" label="State" max_length="100" name="state" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Completed" value="3"/>
+                <element inactive_on_update="false" label="In Queue" value="1"/>
+                <element inactive_on_update="false" label="Processing" value="2"/>
+            </choice>
+        </element>
+        <index name="index">
+            <element name="data_source"/>
+        </index>
+        <index name="index2">
+            <element name="import_set"/>
+        </index>
+    </element>
+</database>
