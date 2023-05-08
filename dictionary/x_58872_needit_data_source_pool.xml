@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element db_object_id="d27a1dc697eae110cbc2f5d3f153af52" label="Data Source Pool" max_length="40" name="x_58872_needit_data_source_pool" type="collection">
+        <element default="true" label="Available" max_length="40" name="available" type="boolean"/>
+        <element label="Data Source" max_length="32" name="data_source" reference="sys_data_source" type="reference"/>
+        <element label="Last Used" max_length="40" name="last_used" type="glide_date_time"/>
+        <index name="index">
+            <element name="data_source"/>
+        </index>
+    </element>
+</database>

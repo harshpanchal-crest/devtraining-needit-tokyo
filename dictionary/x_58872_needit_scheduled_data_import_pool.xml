@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element db_object_id="7d7b1dc697eae110cbc2f5d3f153af5a" label="Scheduled Data Import Pool" max_length="40" name="x_58872_needit_scheduled_data_import_pool" type="collection">
+        <element default="True" label="Available" max_length="40" name="available" type="boolean"/>
+        <element label="Data Source In Use" max_length="32" name="data_source_in_use" reference="sys_data_source" type="reference"/>
+        <element label="Last Used" max_length="40" name="last_used" type="glide_date_time"/>
+        <element label="Scheduled Data Import" max_length="32" name="scheduled_data_import" reference="scheduled_data_import" type="reference"/>
+        <index name="index">
+            <element name="data_source_in_use"/>
+        </index>
+        <index name="index2">
+            <element name="scheduled_data_import"/>
+        </index>
+    </element>
+</database>

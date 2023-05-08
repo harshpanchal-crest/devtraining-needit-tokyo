@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_58872_needit.NeedItDSAttachmentManager</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description>Attachment handler.</description>
+        <name>NeedItDSAttachmentManager</name>
+        <script><![CDATA[var NeedItDSAttachmentManager = Class.create();
+
+NeedItDSAttachmentManager.prototype = {
+    initialize: function() {},
+	_QUEUE_TABLE: "x_58872_needit_queue_table",
+	_DATA_SOURCE_POOL: "x_58872_needit_data_source_pool",
+	_SCHEDULED_DATA_IMPORT_POOL: "x_58872_needit_scheduled_data_import_pool",
+
+    processQueue: function() {
+        try {
+            var globalAccess = this;
+            var queueEntryRecordsToProcess = this._getNext();
+			gs.info("[processQueue] The list of query records to process are: " + queueEntryRecordsToProcess);
+
+            if (queueEntryRecordsToProcess != null) {
+                queueEntryRecordsToProcess.forEach(function(queueEntry) {
+                    if (globalAccess._shouldProcess(queueEntry)) {
+                        globalAccess._processQueueEntry(queueEntry);
+                    } else {
+                        queueEntry.state = 1;
+                        queueEntry.data_source = "";
+                        if (!queueEntry.update()) {
+                            gs.error("[processQueue] Error while updating the status of queue entry.");
+                        }
+                    }
+                });
+
+                queueEntryRecordsToProcess = globalAccess._getNext();
+            }
+
+            // this._updateDSStatusIfNotUsed();
+            // this._clearExpired();
+        } catch (err) {
+            gs.error("[processQueue] Exception: ", err);
+        }
+    },
+
+    _getNext: function() {
+        var queueEntriesToProcess = [];
+        var availableDataSources = this.getAvailableDataSources();
+		gs.info("[_getNext]: The list of available data sources are: " + availableDataSources);
+
+        queueEntriesToProcess = queueEntriesToProcess.concat(this.getQueueEntriesToProcessNext(availableDataSources));
+
+        if (queueEntriesToProcess.length != 0) {
+            return queueEntriesToProcess;
+        }
+
+        return null;
+    },
+
+    getAvailableDataSources: function() {
+        var globalAccess = this;
+        var availableDataSources = [];
+        var glideRecord = new GlideRecord(globalAccess._DATA_SOURCE_POOL);
+
+		glideRecord.addQuery("available", true);
+        glideRecord.orderBy("last_used");
+        glideRecord.query();
+		
+        while (glideRecord.next()) {
+            availableDataSources.push(glideRecord.getValue("data_source"));
+        }
+
+		return availableDataSources;
+    },
+
+    getQueueEntriesToProcessNext: function(availableDataSources) {
+        var globalAccess = this;
+        var queueEntriesToBeProcessed = [];
+
+        availableDataSources.forEach(function(dataSource) {
+            var glideRecord = new GlideRecord(globalAccess._QUEUE_TABLE);
+
+            glideRecord.addQuery("state", 1);
+            glideRecord.addNullQuery("data_source");
+            glideRecord.orderBy("sys_created_on");
+            glideRecord.setLimit(1);
+            glideRecord.query();
+
+            if (glideRecord.next()) {
+                globalAccess._updateDataSourceStatus(dataSource, false);
+                glideRecord.data_source = dataSource;
+
+                if (!glideRecord.update()) {
+                    globalAccess._updateDataSourceStatus(dataSource, true);
+                } else {
+                    queueEntriesToBeProcessed.push(glideRecord);
+                }
+            }
+        });
+
+        return queueEntriesToBeProcessed;
+    },
+
+    _updateDataSourceStatus: function(dataSource, availibilityStatus) {
+        var globalAccess = this;
+        var glideRecord = new GlideRecord(globalAccess._DATA_SOURCE_POOL);
+
+        if (glideRecord.get("data_source", dataSource)) {
+            glideRecord.setValue("available", availibilityStatus);
+            glideRecord.setValue("last_used", new GlideDateTime().getValue());
+
+            if (!glideRecord.update()) {
+                gs.error("[_updateDataSourceStatus] Error while updating the status of data source.");
+            }
+        }
+    },
+
+    _shouldProcess: function(queueEntry) {
+        if (!queueEntry || gs.nil(queueEntry)) {
+            return false;
+        } else {
+            return this._getScheduledImportSet(queueEntry.data_source) != null;
+        }
+    },
+
+    _getScheduledImportSet: function(dataSource) {
+        var globalAccess = this;
+        var glideRecord = new GlideRecord(globalAccess._SCHEDULED_DATA_IMPORT_POOL);
+
+        glideRecord.addQuery("available", true);
+        glideRecord.orderBy("last_used");
+        glideRecord.setLimit(1);
+        glideRecord.query();
+
+        if (glideRecord.next()) {
+			gs.info("[_getScheduledImportSet] Found scheduled data import sets.");
+            globalAccess.scheduledImportToUse = glideRecord.getValue("scheduled_data_import");
+
+            glideRecord.available = false;
+            glideRecord.setValue("last_used", new GlideDateTime().getValue());
+
+            if (!glideRecord.update()) {
+                glideRecordDataSource = new GlideRecord(globalAccess._DATA_SOURCE_POOL);
+
+                if (glideRecordDataSource.get(dataSource)) {
+                    glideRecordDataSource.available = true;
+
+                    if (!glideRecordDataSource.update()) {
+                        gs.error("[_getScheduledImportSet] Error while updating the status of data source as available.");
+                    }
+                }
+                return null;
+            }
+            return globalAccess.scheduledImportToUse;
+        }
+
+        glideRecordDataSource = new GlideRecord(globalAccess._DATA_SOURCE_POOL);
+
+        if (glideRecordDataSource.get("data_source", dataSource)) {
+            glideRecordDataSource.available = true;
+
+            if (!glideRecordDataSource.update()) {
+                gs.error("[_getScheduledImportSet] Error while updating the status of data source as available.");
+            }
+        }
+
+        return null;
+    },
+
+    _processQueueEntry: function(queueEntry) {
+        gs.info("[_processQueueEntry] Picked up queue entry: " + queueEntry.sys_id + " to process.");
+
+        var scheduledImportToUse = this.scheduledImportToUse;
+        if (gs.nil(scheduledImportToUse)) {
+            return;
+        }
+
+        var glideRecordSysDataSource = new GlideRecord("sys_data_source");
+
+        if (!glideRecordSysDataSource.get(queueEntry.data_source)) {
+            gs.warn("Non existent data source - marking as complete");
+
+            // Mark the entry as processed.
+            queueEntry.setValue("state", 3);
+
+            if (!queueEntry.update()) {
+                gs.error("[processQueueEntry] Error updating the queue entry status to ERROR.");
+            }
+
+            return;
+        }
+
+        try {
+            // Delete the attachment from the original data source. - PENDING
+
+            var attachmentApi = new GlideSysAttachment();
+            attachmentApi.copy(this._QUEUE_TABLE, queueEntry.sys_id, "sys_data_source", glideRecordSysDataSource.sys_id);
+
+            var glideRecordScheduledImportSet = new GlideRecord("scheduled_import_set");
+
+            if (glideRecordScheduledImportSet.get(scheduledImportToUse)) {
+                glideRecordScheduledImportSet.setValue("data_source", queueEntry.data_source);
+
+                if (glideRecordScheduledImportSet.update()) {
+                    var glideRecord = new GlideRecord(this._SCHEDULED_DATA_IMPORT_POOL);
+
+                    glideRecord.addQuery("scheduled_data_import", scheduledImportToUse);
+                    glideRecord.query();
+
+                    if (glideRecord.next()) {
+                        glideRecord.setValue("scheduledImportToUse", queueEntry.data_source);
+
+                        if (!glideRecord.update()) {
+                            return;
+                        }
+                    }
+
+                    queueEntry.setValue("state", 2);
+
+                    var trigger = gs.executeNow(glideRecordScheduledImportSet);
+
+                    gs.info("[processQueueEntry] Started queue: " + queueEntry.sys_id + " processing with sys_trigger sys_id: " + trigger);
+
+                    if (!queueEntry.update()) {
+                        gs.error("[processQueueEntry] Error Updating trigger in the Queue entry" + trigger);
+                    }
+                }
+            }
+
+        } catch (err) {
+            queueEntry.setValue("state", 3);
+
+            if (!queueEntry.update()) {
+                gs.error("[processQueueEntry] Error while updating the queue entry status to ERROR.");
+            }
+
+            gs.error("[processQueueEntry] Exception: ", err);
+        }
+    },
+
+    type: 'NeedItDSAttachmentManager'
+};]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2023-05-03 06:23:29</sys_created_on>
+        <sys_id>a7d951c697eae110cbc2f5d3f153afcb</sys_id>
+        <sys_mod_count>21</sys_mod_count>
+        <sys_name>NeedItDSAttachmentManager</sys_name>
+        <sys_package display_value="NeedIt" source="x_58872_needit">6ead8e780f603200cd674f8ce1050ed1</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="NeedIt">6ead8e780f603200cd674f8ce1050ed1</sys_scope>
+        <sys_update_name>sys_script_include_a7d951c697eae110cbc2f5d3f153afcb</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2023-05-03 13:11:08</sys_updated_on>
+    </sys_script_include>
+</record_update>
